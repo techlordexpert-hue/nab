@@ -1,0 +1,6 @@
+{
+  "name": "NAB’s FRAMES",
+  "description": "Showcase and order picture frames, canvas frames, customized chains, and phone cases from NAB's FRAMES in Agona Nkwanta with live order tracking and WhatsApp dispatch.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
