@@ -36,6 +36,7 @@ export const AdminPanel: React.FC = () => {
   const [pinInput, setPinInput] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [pinError, setPinError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
   const [activeTab, setActiveTab] = useState<'inventory' | 'orders' | 'add_product' | 'security'>('inventory');
   const [orders, setOrders] = useState<Order[]>([]);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
@@ -76,13 +77,16 @@ export const AdminPanel: React.FC = () => {
   const handleVerifyPin = async (e: React.FormEvent) => {
     e.preventDefault();
     setPinError('');
-    if (!pinInput.trim()) {
+    const trimmed = pinInput.trim();
+    if (!trimmed) {
       setPinError('Please enter your admin password.');
       return;
     }
-    const valid = await verifyAdminPin(pinInput.trim());
-    if (!valid) {
-      setPinError('Incorrect password. Please try again.');
+    setIsVerifying(true);
+    const res = await verifyAdminPin(trimmed);
+    setIsVerifying(false);
+    if (!res.success) {
+      setPinError(res.message || 'Incorrect password. Default is 2648 or contact number 0246782648.');
     } else {
       setPinInput('');
     }
@@ -130,13 +134,17 @@ export const AdminPanel: React.FC = () => {
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
                 placeholder="Enter Admin Password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                inputMode="text"
                 className="w-full text-center text-sm font-semibold py-3 px-10 bg-stone-50 border border-stone-300 rounded-2xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900"
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowLoginPassword(!showLoginPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1"
                 tabIndex={-1}
               >
                 {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -144,17 +152,38 @@ export const AdminPanel: React.FC = () => {
             </div>
 
             {pinError && (
-              <div className="text-xs text-rose-600 font-medium">
-                {pinError}
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium text-left flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <p>{pinError}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPinInput('2648');
+                      setPinError('');
+                    }}
+                    className="text-[11px] font-bold text-stone-900 underline mt-1.5 block hover:text-amber-700"
+                  >
+                    Click here to autofill default password (2648)
+                  </button>
+                </div>
               </div>
             )}
 
             <button
               id="admin-login-btn"
               type="submit"
-              className="w-full py-3 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-xl transition-all shadow-sm"
+              disabled={isVerifying}
+              className="w-full py-3 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
             >
-              Unlock Admin Panel
+              {isVerifying ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Verifying...</span>
+                </>
+              ) : (
+                <span>Unlock Admin Panel</span>
+              )}
             </button>
           </form>
 

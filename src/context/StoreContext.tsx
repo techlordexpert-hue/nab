@@ -45,7 +45,7 @@ interface StoreContextType {
   trackOrder: (query: string) => Promise<Order[]>;
   
   // Admin actions
-  verifyAdminPin: (pin: string) => Promise<boolean>;
+  verifyAdminPin: (pin: string) => Promise<{ success: boolean; message?: string }>;
   changeAdminPin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
   logoutAdmin: () => void;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<boolean>;
@@ -293,24 +293,40 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // Admin Features
-  const verifyAdminPin = async (pin: string): Promise<boolean> => {
+  const verifyAdminPin = async (pin: string): Promise<{ success: boolean; message?: string }> => {
+    const cleanPin = pin.trim();
     try {
       const res = await fetch('/api/admin/verify-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin }),
+        body: JSON.stringify({ pin: cleanPin }),
       });
       const data = await res.json();
-      if (data.success) {
-        setAdminPin(pin);
+      if (res.ok && data.success) {
+        const pinToSave = data.activePin || cleanPin;
+        setAdminPin(pinToSave);
         setIsAdminAuthenticated(true);
-        localStorage.setItem('nab_admin_pin', pin);
-        return true;
+        localStorage.setItem('nab_admin_pin', pinToSave);
+        return { success: true };
       }
       setIsAdminAuthenticated(false);
-      return false;
+      return { 
+        success: false, 
+        message: data.message || 'Incorrect password. Default is 2648 or contact number 0246782648.' 
+      };
     } catch {
-      return false;
+      // Mobile network or offline fallback
+      if (cleanPin === '2648' || cleanPin === '0246782648' || (settings.adminPin && cleanPin === settings.adminPin)) {
+        setAdminPin(cleanPin);
+        setIsAdminAuthenticated(true);
+        localStorage.setItem('nab_admin_pin', cleanPin);
+        return { success: true };
+      }
+      setIsAdminAuthenticated(false);
+      return { 
+        success: false, 
+        message: 'Could not connect to server. Please check your internet connection or try default 2648.' 
+      };
     }
   };
 

@@ -234,19 +234,35 @@ app.post('/api/orders', (req: Request, res: Response) => {
   res.status(201).json(newOrder);
 });
 
+// Helper to verify admin authorization securely
+function checkAdminAuth(pin: any): boolean {
+  if (!pin) return false;
+  const clean = String(pin).trim();
+  const currentPin = String(storeData.settings.adminPin || '').trim();
+  // Accepts: current saved password, default '2648', or contact phone '0246782648'
+  return clean === currentPin || clean === '2648' || clean === '0246782648';
+}
+
 // Admin Authentication
 app.post('/api/admin/verify-pin', (req: Request, res: Response) => {
   const { pin } = req.body;
-  if (pin && String(pin) === String(storeData.settings.adminPin)) {
-    return res.json({ success: true, message: 'Authorized' });
+  if (checkAdminAuth(pin)) {
+    return res.json({ 
+      success: true, 
+      message: 'Authorized',
+      activePin: String(storeData.settings.adminPin || '2648') 
+    });
   }
-  return res.status(401).json({ success: false, message: 'Invalid Admin PIN. (Default is 2648)' });
+  return res.status(401).json({ 
+    success: false, 
+    message: 'Incorrect password. You can enter default 2648 or contact number 0246782648.' 
+  });
 });
 
 // Admin: Get all orders
 app.get('/api/admin/orders', (req: Request, res: Response) => {
   const pin = req.headers['x-admin-pin'];
-  if (String(pin) !== String(storeData.settings.adminPin)) {
+  if (!checkAdminAuth(pin)) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
   res.json(storeData.orders);
@@ -255,7 +271,7 @@ app.get('/api/admin/orders', (req: Request, res: Response) => {
 // Admin: Update Order Status
 app.put('/api/admin/orders/:id/status', (req: Request, res: Response) => {
   const pin = req.headers['x-admin-pin'];
-  if (String(pin) !== String(storeData.settings.adminPin)) {
+  if (!checkAdminAuth(pin)) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
@@ -306,7 +322,7 @@ app.put('/api/admin/orders/:id/status', (req: Request, res: Response) => {
 // Admin: Update Product Price and Stock (Instant live reflection across all devices)
 app.put('/api/admin/products/:id', (req: Request, res: Response) => {
   const pin = req.headers['x-admin-pin'];
-  if (String(pin) !== String(storeData.settings.adminPin)) {
+  if (!checkAdminAuth(pin)) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
@@ -341,31 +357,33 @@ app.put('/api/admin/products/:id', (req: Request, res: Response) => {
   res.json({ success: true, product, products: storeData.products });
 });
 
-// Admin: Change PIN
+// Admin: Change PIN / Password
 app.put('/api/admin/change-pin', (req: Request, res: Response) => {
   const pin = req.headers['x-admin-pin'];
   const { currentPin, newPin } = req.body;
 
-  const activeAdminPin = String(storeData.settings.adminPin);
-
-  if (String(pin) !== activeAdminPin && String(currentPin) !== activeAdminPin) {
-    return res.status(401).json({ success: false, message: 'Current password/PIN is incorrect.' });
+  if (!checkAdminAuth(pin) && !checkAdminAuth(currentPin)) {
+    return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
   }
 
   if (!newPin || String(newPin).trim().length < 4) {
-    return res.status(400).json({ success: false, message: 'New password/PIN must be at least 4 characters.' });
+    return res.status(400).json({ success: false, message: 'New password must be at least 4 characters.' });
   }
 
   storeData.settings.adminPin = String(newPin).trim();
   saveStore();
 
-  res.json({ success: true, message: 'Admin password/PIN updated successfully.' });
+  res.json({ 
+    success: true, 
+    message: 'Admin password updated successfully.',
+    activePin: storeData.settings.adminPin
+  });
 });
 
 // Admin: Add new product
 app.post('/api/admin/products', (req: Request, res: Response) => {
   const pin = req.headers['x-admin-pin'];
-  if (String(pin) !== String(storeData.settings.adminPin)) {
+  if (!checkAdminAuth(pin)) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
@@ -399,7 +417,7 @@ app.post('/api/admin/products', (req: Request, res: Response) => {
 // Admin: Delete product
 app.delete('/api/admin/products/:id', (req: Request, res: Response) => {
   const pin = req.headers['x-admin-pin'];
-  if (String(pin) !== String(storeData.settings.adminPin)) {
+  if (!checkAdminAuth(pin)) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
@@ -419,7 +437,7 @@ app.delete('/api/admin/products/:id', (req: Request, res: Response) => {
 // Admin: Reset catalog to defaults if requested
 app.post('/api/admin/reset-catalog', (req: Request, res: Response) => {
   const pin = req.headers['x-admin-pin'];
-  if (String(pin) !== String(storeData.settings.adminPin)) {
+  if (!checkAdminAuth(pin)) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
